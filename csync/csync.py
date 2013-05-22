@@ -1,21 +1,27 @@
+from __future__ import print_function
 #!/usr/bin/env python
 
 import os
 import sys
 import argparse
-import configparser
+import ctypes
 import re
 import pprint
 import copy
 import getpass
-import ctypes
+import six
+if sys.version_info[0] == 2:
+        import ConfigParser
+else:
+        import configparser
 
 try:
 	import keyring
 except:
 	keyring = None
 
-from . import csynclib, version
+from . import csynclib
+from . import version
 VERSION = version.version
 
 #Use global variables for user/pass & fingerprint because we have to handle this C callback stuff.
@@ -25,6 +31,7 @@ PASSWORD_SAFE = '********'
 SSLFINGERPRINT = ''
 DEBUG = False
 USE_KEYRING = False
+encoding = 'b'
 
 def authCallback(prompt, buffer, bufferLength, echo, verify, userData):
 	"""
@@ -38,9 +45,9 @@ def authCallback(prompt, buffer, bufferLength, echo, verify, userData):
 		print('authCallback:', prompt,  buffer,  bufferLength, echo, verify, userData)
 		#print 'string:', ctypes.string_at(buffer, bufferLength-1)
 	ret = None
-	if 'username' in prompt.decode():
+	if 'username'.encode('utf-8') in prompt:
 		ret = USERNAME
-	elif 'password' in prompt.decode():
+	elif 'password'.encode('utf-8') in prompt:
 		if keyring and USE_KEYRING:
 			print("using password from keyring")
 			ret = keyring.get_password('ownCloud', USERNAME)
@@ -101,7 +108,10 @@ class ownCloudSync():
 		self.ctx = ctypes.pointer(c)
 		self.buildURL()
 		#pprint.pprint(self.cfg)
-		print('Syncing {!s} to {!s} logging in as user: {!s}'.format(self.cfg['src'], self.cfg['url'], USERNAME))
+		print('Syncing %s to %s logging in as user: %s' %  (self.cfg['src'], 
+			self.cfg['url'],
+			USERNAME)
+			)
 		if 'dry_run' in cfg and cfg['dry_run']:
 			return
 		self.sync()
@@ -133,9 +143,9 @@ class ownCloudSync():
 
 
 	def sync(self):
-		srcRef = self.cfg['src'].encode('utf-8')
-		urlRef = self.cfg['url'].encode('utf-8')
-		r = csynclib.csync_create(self.ctx, srcRef, urlRef)
+		srcref = self.cfg['src'].encode('utf-8')
+		urlref = self.cfg['url'].encode('utf-8')
+		r = csynclib.csync_create(self.ctx, srcref, urlref)
 		if r != 0:
 			error(self.ctx,'csync_create', r)
 		csynclib.csync_set_log_callback(self.ctx, csynclib.csync_log_callback(log))
@@ -149,7 +159,7 @@ class ownCloudSync():
 			error(self.ctx, 'csync_init', r)
 		if DEBUG:
 			print('Initialization done.')
-		#csync_set_log_verbosity(self.ctx, ctypes.c_int(11))
+		#csynclib.csync_set_log_verbosity(self.ctx, ctypes.c_int(11))
 		r = csynclib.csync_update(self.ctx)
 		if r != 0:
 			error(self.ctx, 'csync_update', r)
@@ -213,7 +223,6 @@ def getConfigPath():
 	return cfgPath
 
 def getConfig(parser):
-	import getpass
 	args = vars(parser.parse_args())
 	if DEBUG:
 		print('From args: ')
@@ -222,7 +231,7 @@ def getConfig(parser):
 			pargs['pass'] = PASSWORD_SAFE
 		pprint.pprint(pargs)
 	newArgs = {}
-	for k, v in args.items():
+	for k, v in six.iteritems(args):
 		if v:
 			newArgs[k] = v
 	args = newArgs
@@ -240,7 +249,10 @@ def getConfig(parser):
 			things in the cfg file...
 				pass: the password
 			"""
-			c = configparser.SafeConfigParser()
+			if sys.version_info[0] == 2:
+				c = ConfigParser.SafeConfigParser()
+			else:
+				c = configparser.SafeConfigParser()
 			c.readfp(fd)
 			cfg = dict(c.items('ownCloud'))
 			if DEBUG:

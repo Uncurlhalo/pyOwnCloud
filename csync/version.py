@@ -1,3 +1,7 @@
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
 import subprocess
 import json
 import os
@@ -111,7 +115,7 @@ class gitVersion(ver):
 			self.version['head'] = ver
 			self.saveVersion()
 		else:
-			if self.version.has_key('head'):
+			if 'head' in self.version:
 				ver = self.version['head']
 			else:
 				ver = '00'
@@ -133,7 +137,7 @@ version = gitVersion(verfile)
 if __name__ == '__main__':
 	print('Testing version.')
 	v = hgVersion()
-	print('dict:', v.version)
-	print('string:', v.asString)
-	print('float:', v.asFloat)
-	print('hghead', v.asHead)
+	print(('dict:', v.version))
+	print(('string:', v.asString))
+	print(('float:', v.asFloat))
+	print(('hghead', v.asHead))
